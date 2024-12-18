@@ -12,20 +12,25 @@ export class PortfolioService {
       );
 
       // Connect model portfolio manager with correct signer
-      const modelManager = contracts.modelPortfolioManager.connect(portfolioManagerSigner);
+      const modelManager = contracts.modelPortfolioManager.connect(
+        portfolioManagerSigner
+      );
 
       console.log("Creating model portfolio...");
       const tx = await modelManager.createModelPortfolio(
         fundAddresses,
-        weights,
+        weights
       );
       const receipt = await tx.wait();
       if (!receipt) throw new Error("Transaction failed");
-      
+
       const event = receipt.logs[0] as ethers.EventLog;
       const portfolioId = event.args[0];
-      console.log("✅ Model portfolio created with ID:", portfolioId.toString());
-      
+      console.log(
+        "✅ Model portfolio created with ID:",
+        portfolioId.toString()
+      );
+
       return portfolioId;
     } catch (error: any) {
       console.error("❌ Failed to create model portfolio:", error);
@@ -33,7 +38,11 @@ export class PortfolioService {
     }
   }
 
-  async assignPortfolio(investor: string, portfolioId: number, stablecoin: string) {
+  async assignPortfolio(
+    investor: string,
+    portfolioId: number,
+    stablecoin: string
+  ) {
     try {
       console.log("Assigning portfolio...");
       // Connect as portfolio manager (Account #1) since they own the manager
@@ -44,7 +53,9 @@ export class PortfolioService {
       );
 
       // Connect investor portfolio manager with correct signer
-      const investorManager = contracts.investorPortfolioManager.connect(portfolioManagerSigner);
+      const investorManager = contracts.investorPortfolioManager.connect(
+        portfolioManagerSigner
+      );
 
       const tx = await investorManager.assignModelPortfolio(
         investor,
@@ -54,7 +65,7 @@ export class PortfolioService {
       const receipt = await tx.wait();
       if (!receipt) throw new Error("Transaction failed");
       console.log("✅ Portfolio assigned successfully");
-      
+
       return true;
     } catch (error: any) {
       console.error("❌ Portfolio assignment failed:", error);
@@ -72,7 +83,7 @@ export class PortfolioService {
 
       // Connect USDC token with deployer signer
       const usdcWithDeployer = contracts.usdcToken.connect(deployerSigner);
-      
+
       // Transfer USDC from deployer to investor instead of minting
       console.log("Transferring USDC to investor...");
       const transferTx = await usdcWithDeployer.transfer(investor, amount);
@@ -88,7 +99,7 @@ export class PortfolioService {
 
       // Connect USDC token with investor signer
       const usdcWithSigner = contracts.usdcToken.connect(investorSigner);
-      
+
       // Approve spending
       console.log("Approving USDC spend...");
       const approveTx = await usdcWithSigner.approve(
@@ -100,8 +111,9 @@ export class PortfolioService {
       console.log("✅ Approved USDC spend");
 
       // Connect portfolio manager with investor signer
-      const portfolioManagerWithSigner = contracts.investorPortfolioManager.connect(investorSigner);
-      
+      const portfolioManagerWithSigner =
+        contracts.investorPortfolioManager.connect(investorSigner);
+
       // Deposit using investor's signer
       console.log("Depositing as investor...");
       const depositTx = await portfolioManagerWithSigner.deposit(amount);
@@ -129,23 +141,46 @@ export class PortfolioService {
     }
   }
 
-  async updateModelPortfolio(portfolioId: number, fundAddresses: string[], weights: number[]) {
+  async updateModelPortfolio(
+    portfolioId: number,
+    fundAddresses: string[],
+    weights: number[]
+  ) {
     try {
-      const tx = await contracts.modelPortfolioManager.updateModelPortfolio(
+      // Connect as portfolio manager (Account #1) since they own the contract
+      const portfolioManagerSigner = new ethers.Wallet(
+        // Account #1's private key
+        "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
+        contracts.provider
+      );
+
+      // Connect model portfolio manager with correct signer
+      const modelManager = contracts.modelPortfolioManager.connect(
+        portfolioManagerSigner
+      );
+
+      console.log("Updating model portfolio...");
+      const tx = await modelManager.updateModelPortfolio(
         portfolioId,
         fundAddresses,
         weights
       );
-      await tx.wait();
+      const receipt = await tx.wait();
+      if (!receipt) throw new Error("Transaction failed");
+      console.log("✅ Model portfolio updated successfully");
+
       return true;
     } catch (error: any) {
+      console.error("❌ Failed to update model portfolio:", error);
       throw new Error(`Failed to update model portfolio: ${error.message}`);
     }
   }
 
   async getModelPortfolio(portfolioId: number) {
     try {
-      const portfolio = await contracts.modelPortfolioManager.getModelPortfolio(portfolioId);
+      const portfolio = await contracts.modelPortfolioManager.getModelPortfolio(
+        portfolioId
+      );
       return portfolio;
     } catch (error: any) {
       throw new Error(`Failed to get model portfolio: ${error.message}`);
@@ -154,8 +189,9 @@ export class PortfolioService {
 
   async getPortfolioValue(investor: string) {
     try {
-      const value =
-        await contracts.investorPortfolioManager.getPortfolioValue(investor);
+      const value = await contracts.investorPortfolioManager.getPortfolioValue(
+        investor
+      );
       return ethers.formatUnits(value, 6); // Assuming USDC with 6 decimals
     } catch (error: any) {
       throw new Error(`Failed to get portfolio value: ${error.message}`);
