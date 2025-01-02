@@ -1,13 +1,16 @@
 import { contracts } from "../contracts";
 import { ethers } from "ethers";
 
+// Account #1 (Portfolio Manager) private key
+const PORTFOLIO_MANAGER_KEY =
+  "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
+
 export class PortfolioService {
   async createModelPortfolio(fundAddresses: string[], weights: number[]) {
     try {
       // Connect as portfolio manager (Account #1) since they own the contract
       const portfolioManagerSigner = new ethers.Wallet(
-        // Account #1's private key
-        "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
+        PORTFOLIO_MANAGER_KEY,
         contracts.provider
       );
 
@@ -48,14 +51,13 @@ export class PortfolioService {
 
       // Use Account #1 (portfolio manager) who owns both contracts
       const portfolioManagerSigner = new ethers.Wallet(
-        // Account #1's private key
-        "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
+        PORTFOLIO_MANAGER_KEY,
         contracts.provider
       );
 
       // First assign in InvestorPortfolioManager
       const investorManager = contracts.investorPortfolioManager.connect(
-        portfolioManagerSigner // Use the correct signer
+        portfolioManagerSigner
       );
 
       console.log("Assigning in InvestorPortfolioManager...");
@@ -65,19 +67,10 @@ export class PortfolioService {
         stablecoin
       );
       await assignTx.wait();
+      console.log("✅ Portfolio assigned in InvestorPortfolioManager");
 
-      // Then register in ModelPortfolioManager
-      const modelManager = contracts.modelPortfolioManager.connect(
-        portfolioManagerSigner // Use the same signer
-      );
-
-      console.log("Registering in ModelPortfolioManager...");
-      const registerTx = await modelManager.assignInvestor(
-        investor,
-        portfolioId
-      );
-      await registerTx.wait();
-
+      // The ModelPortfolioManager.assignInvestor will be called automatically
+      // by InvestorPortfolioManager since it's the owner
       console.log("✅ Portfolio assigned successfully");
       return true;
     } catch (error: any) {
@@ -155,8 +148,7 @@ export class PortfolioService {
     try {
       // Connect as portfolio manager (Account #1) since they own the contract
       const portfolioManagerSigner = new ethers.Wallet(
-        // Account #1's private key
-        "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
+        PORTFOLIO_MANAGER_KEY,
         contracts.provider
       );
 
