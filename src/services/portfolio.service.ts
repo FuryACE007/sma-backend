@@ -81,9 +81,24 @@ export class PortfolioService {
 
   async deposit(investor: string, amount: string) {
     try {
+      console.log("Starting deposit process...");
       const investorSigner = await contracts.provider.getSigner(investor);
 
+      // Log initial balances
+      const initialUsdcBalance = await contracts.fundTokens.usdc.balanceOf(
+        investor
+      );
+      console.log(
+        "Initial USDC balance:",
+        ethers.formatUnits(initialUsdcBalance, 6)
+      );
+
+      // Get portfolio value before deposit
+      const beforeValue = await this.getPortfolioValue(investor);
+      console.log("Portfolio value before deposit:", beforeValue);
+
       // Approve USDC spend
+      console.log("Approving USDC spend...");
       const usdcWithInvestor =
         contracts.fundTokens.usdc.connect(investorSigner);
       const approveTx = await usdcWithInvestor.approve(
@@ -91,15 +106,31 @@ export class PortfolioService {
         amount
       );
       await approveTx.wait();
+      console.log("✅ USDC spend approved");
 
       // Deposit
+      console.log("Depositing USDC...");
       const portfolioManager =
         contracts.investorPortfolioManager.connect(investorSigner);
       const tx = await portfolioManager.deposit(amount);
       const receipt = await tx.wait();
+      console.log("✅ Deposit transaction confirmed");
+
+      // Log final balances
+      const finalUsdcBalance = await contracts.fundTokens.usdc.balanceOf(
+        investor
+      );
+      console.log(
+        "Final USDC balance:",
+        ethers.formatUnits(finalUsdcBalance, 6)
+      );
+
+      const afterValue = await this.getPortfolioValue(investor);
+      console.log("Portfolio value after deposit:", afterValue);
 
       return receipt;
     } catch (error: any) {
+      console.error("❌ Deposit failed:", error);
       throw new Error(`Failed to deposit: ${error.message}`);
     }
   }
