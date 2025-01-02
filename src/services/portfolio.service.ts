@@ -5,6 +5,16 @@ import { ethers } from "ethers";
 const PORTFOLIO_MANAGER_KEY =
   "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
 
+interface PortfolioValue {
+  totalValue: string;
+  fundValues: {
+    tokenAddress: string;
+    symbol: string;
+    balance: string;
+    value: string;
+  }[];
+}
+
 export class PortfolioService {
   async createModelPortfolio(fundAddresses: string[], weights: number[]) {
     try {
@@ -216,12 +226,47 @@ export class PortfolioService {
     }
   }
 
-  async getPortfolioValue(investor: string) {
+  async getPortfolioValue(investor: string): Promise<PortfolioValue> {
     try {
-      const value = await contracts.investorPortfolioManager.getPortfolioValue(
-        investor
+      // Get total value from contract
+      const totalValue =
+        await contracts.investorPortfolioManager.getPortfolioValue(investor);
+
+      // Get investor's portfolio ID
+      const portfolioId =
+        await contracts.investorPortfolioManager.getInvestorPortfolio(investor);
+
+      // Get model portfolio to know which tokens to check
+      const modelPortfolio =
+        await contracts.modelPortfolioManager.getModelPortfolio(portfolioId);
+
+      // Get individual fund values
+      const fundValues = await Promise.all(
+        modelPortfolio.map(async (allocation) => {
+          const token = new ethers.Contract(
+            allocation.tokenAddress,
+            [
+              "function symbol() view returns (string)",
+              "function balanceOf(address) view returns (uint256)",
+            ],
+            contracts.provider
+          );
+
+          const balance = await token.balanceOf(investor);
+
+          return {
+            tokenAddress: allocation.tokenAddress,
+            symbol: await token.symbol(),
+            balance: ethers.formatUnits(balance, 6),
+            value: ethers.formatUnits(balance, 6), // Assuming 1:1 price with USD
+          };
+        })
       );
-      return ethers.formatUnits(value, 6); // Assuming USDC with 6 decimals
+
+      return {
+        totalValue: ethers.formatUnits(totalValue, 6),
+        fundValues,
+      };
     } catch (error: any) {
       throw new Error(`Failed to get portfolio value: ${error.message}`);
     }
