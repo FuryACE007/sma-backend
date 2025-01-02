@@ -45,27 +45,40 @@ export class PortfolioService {
   ) {
     try {
       console.log("Assigning portfolio...");
-      // Connect as portfolio manager (Account #1) since they own the manager
+
+      // Use Account #1 (portfolio manager) who owns both contracts
       const portfolioManagerSigner = new ethers.Wallet(
         // Account #1's private key
         "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
         contracts.provider
       );
 
-      // Connect investor portfolio manager with correct signer
+      // First assign in InvestorPortfolioManager
       const investorManager = contracts.investorPortfolioManager.connect(
-        portfolioManagerSigner
+        portfolioManagerSigner // Use the correct signer
       );
 
-      const tx = await investorManager.assignModelPortfolio(
+      console.log("Assigning in InvestorPortfolioManager...");
+      const assignTx = await investorManager.assignModelPortfolio(
         investor,
         portfolioId,
         stablecoin
       );
-      const receipt = await tx.wait();
-      if (!receipt) throw new Error("Transaction failed");
-      console.log("✅ Portfolio assigned successfully");
+      await assignTx.wait();
 
+      // Then register in ModelPortfolioManager
+      const modelManager = contracts.modelPortfolioManager.connect(
+        portfolioManagerSigner // Use the same signer
+      );
+
+      console.log("Registering in ModelPortfolioManager...");
+      const registerTx = await modelManager.assignInvestor(
+        investor,
+        portfolioId
+      );
+      await registerTx.wait();
+
+      console.log("✅ Portfolio assigned successfully");
       return true;
     } catch (error: any) {
       console.error("❌ Portfolio assignment failed:", error);
@@ -75,65 +88,58 @@ export class PortfolioService {
 
   async deposit(investor: string, amount: string) {
     try {
-      // Get the deployer signer (Account #0) who has the initial USDC supply
-      const deployerSigner = new ethers.Wallet(
-        "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
-        contracts.provider
-      );
+      const investorSigner = await contracts.provider.getSigner(investor);
 
-      // Connect USDC token with deployer signer
-      const usdcWithDeployer = contracts.usdcToken.connect(deployerSigner);
-
-      // Transfer USDC from deployer to investor instead of minting
-      console.log("Transferring USDC to investor...");
-      const transferTx = await usdcWithDeployer.transfer(investor, amount);
-      const transferReceipt = await transferTx.wait();
-      if (!transferReceipt) throw new Error("Transfer transaction failed");
-      console.log("✅ Transferred USDC to investor");
-
-      // Create investor signer (Account #2)
-      const investorSigner = new ethers.Wallet(
-        "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a",
-        contracts.provider
-      );
-
-      // Connect USDC token with investor signer
-      const usdcWithSigner = contracts.usdcToken.connect(investorSigner);
-
-      // Approve spending
-      console.log("Approving USDC spend...");
-      const approveTx = await usdcWithSigner.approve(
+      // Approve USDC spend
+      const usdcWithInvestor =
+        contracts.fundTokens.usdc.connect(investorSigner);
+      const approveTx = await usdcWithInvestor.approve(
         await contracts.investorPortfolioManager.getAddress(),
         amount
       );
-      const approveReceipt = await approveTx.wait();
-      if (!approveReceipt) throw new Error("Approve transaction failed");
-      console.log("✅ Approved USDC spend");
+      await approveTx.wait();
 
-      // Connect portfolio manager with investor signer
-      const portfolioManagerWithSigner =
+      // Deposit
+      const portfolioManager =
         contracts.investorPortfolioManager.connect(investorSigner);
+      const tx = await portfolioManager.deposit(amount);
+      const receipt = await tx.wait();
 
-      // Deposit using investor's signer
-      console.log("Depositing as investor...");
-      const depositTx = await portfolioManagerWithSigner.deposit(amount);
-      const depositReceipt = await depositTx.wait();
-      if (!depositReceipt) throw new Error("Deposit transaction failed");
-      console.log("✅ Deposit successful");
-
-      return depositReceipt;
-    } catch (error) {
-      console.error("❌ Deposit failed:", error);
-      throw error;
+      return receipt;
+    } catch (error: any) {
+      throw new Error(`Failed to deposit: ${error.message}`);
     }
   }
 
   async withdraw(investor: string, amount: string) {
     try {
-      const signer = await contracts.provider.getSigner(investor);
-      const tx = await contracts.investorPortfolioManager
-        .connect(signer)
-        .withdraw(amount);
+      const investorSigner = await contracts.provider.getSigner(investor);
+
+      // Get investor's portfolio ID first
+      const portfolioId = Number(
+        await contracts.investorPortfolioManager.getInvestorPortfolio(investor)
+      );
+
+      // Get model portfolio using ID
+      const portfolio = await this.getModelPortfolio(portfolioId);
+
+      // First approve all fund tokens
+      for (const allocation of portfolio) {
+        const fundToken = new ethers.Contract(
+          allocation.tokenAddress,
+          ["function approve(address,uint256)"],
+          investorSigner
+        );
+        await fundToken.approve(
+          await contracts.investorPortfolioManager.getAddress(),
+          ethers.MaxUint256
+        );
+      }
+
+      // Then withdraw
+      const portfolioManager =
+        contracts.investorPortfolioManager.connect(investorSigner);
+      const tx = await portfolioManager.withdraw(amount);
       await tx.wait();
       return true;
     } catch (error: any) {

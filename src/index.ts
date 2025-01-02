@@ -6,9 +6,7 @@ import { contracts } from "./contracts";
 async function verifyContracts() {
   try {
     // Test contract connections by calling view functions
-    await contracts.modelPortfolioManager.linkedManagers(
-      await contracts.investorPortfolioManager.getAddress()
-    );
+    await contracts.modelPortfolioManager.investorPortfolioManager();
     console.log("✅ Contract connections verified");
   } catch (error) {
     console.error("❌ Contract connection failed:", error);
@@ -30,11 +28,14 @@ async function startServer() {
       "- Investor Portfolio Manager:",
       await contracts.investorPortfolioManager.getAddress()
     );
-    console.log("- USDC Token:", await contracts.usdcToken.getAddress());
-    console.log("- Real Estate Token:", await contracts.realEstateToken.getAddress());
+    console.log("- USDC Token:", await contracts.fundTokens.usdc.getAddress());
+    console.log(
+      "- Real Estate Token:",
+      await contracts.fundTokens.realEstate.getAddress()
+    );
     console.log(
       "- Private Equity Token:",
-      await contracts.privateEquityToken.getAddress()
+      await contracts.fundTokens.privateEquity.getAddress()
     );
   });
 }
