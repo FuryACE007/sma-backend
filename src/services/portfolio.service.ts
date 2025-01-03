@@ -187,26 +187,59 @@ export class PortfolioService {
     weights: number[]
   ) {
     try {
-      // Connect as portfolio manager (Account #1) since they own the contract
       const portfolioManagerSigner = new ethers.Wallet(
         PORTFOLIO_MANAGER_KEY,
         contracts.provider
       );
 
-      // Connect model portfolio manager with correct signer
+      // First approve all tokens for rebalancing
+      const investor = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"; // Account #2
+      const investorSigner = await contracts.provider.getSigner(investor);
+
+      console.log("Approving tokens for rebalancing...");
+      for (const tokenAddress of fundAddresses) {
+        const token = new ethers.Contract(
+          tokenAddress,
+          ["function approve(address,uint256)"],
+          investorSigner
+        );
+
+        const approveTx = await token.approve(
+          await contracts.investorPortfolioManager.getAddress(),
+          ethers.MaxUint256
+        );
+        await approveTx.wait(); // Wait for each approval
+      }
+      console.log("✅ Tokens approved");
+
+      // Wait a bit to ensure nonce is updated
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Update model portfolio
+      console.log("Updating model portfolio...");
       const modelManager = contracts.modelPortfolioManager.connect(
         portfolioManagerSigner
       );
-
-      console.log("Updating model portfolio...");
       const tx = await modelManager.updateModelPortfolio(
         portfolioId,
         fundAddresses,
         weights
       );
-      const receipt = await tx.wait();
-      if (!receipt) throw new Error("Transaction failed");
+      await tx.wait();
       console.log("✅ Model portfolio updated successfully");
+
+      // Wait again before rebalancing
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Rebalance with fresh connection
+      const investorManager = contracts.investorPortfolioManager.connect(
+        new ethers.Wallet(PORTFOLIO_MANAGER_KEY, contracts.provider)
+      );
+
+      console.log("Triggering manual rebalance...");
+      const rebalanceTx = await investorManager.rebalancePortfolio(investor);
+      await rebalanceTx.wait();
+      console.log("✅ Portfolio rebalanced");
 
       return true;
     } catch (error: any) {

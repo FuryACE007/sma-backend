@@ -1,18 +1,18 @@
 import express from "express";
 import cors from "cors";
-import swaggerUi from 'swagger-ui-express';
-import { specs } from './swagger';
+import swaggerUi from "swagger-ui-express";
+import { specs } from "./swagger";
 import { PortfolioService } from "./services/portfolio.service";
 
 const app = express();
 const portfolioService = new PortfolioService();
 
 // Swagger setup
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 
 // Add custom JSON handler for BigInt
-app.set('json replacer', (_key: string, value: any) => 
-  typeof value === 'bigint' ? value.toString() : value
+app.set("json replacer", (_key: string, value: any) =>
+  typeof value === "bigint" ? value.toString() : value
 );
 
 app.use(cors());
@@ -38,7 +38,7 @@ app.use(express.json());
  *             schema:
  *               type: object
  *               properties:
- *                 portfolioId: 
+ *                 portfolioId:
  *                   type: string
  *                   description: The ID of the created portfolio
  */
@@ -47,7 +47,7 @@ app.post("/api/portfolio/model", async (req, res) => {
     const { fundAddresses, weights } = req.body;
     const portfolioId = await portfolioService.createModelPortfolio(
       fundAddresses,
-      weights,
+      weights
     );
     res.json({ portfolioId });
   } catch (error: any) {
