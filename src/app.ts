@@ -228,7 +228,7 @@ app.post("/api/portfolio/withdraw", async (req, res) => {
  *               properties:
  *                 value:
  *                   type: string
- *                   description: Portfolio value in USDC
+ *                   description: Portfolio value in USD
  */
 app.get("/api/portfolio/value/:investor", async (req, res) => {
   try {

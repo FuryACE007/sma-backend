@@ -98,14 +98,16 @@ export class PortfolioService {
   async deposit(investor: string, amount: string) {
     try {
       console.log("Starting deposit process...");
+      
+      // Step 1: Store initial cash deposit in balances.json
+      await this.cashService.updateCashBalance(investor, Number(amount));
+      console.log("💰 Initial cash deposit stored:", amount);
+    
+      // Step 2: Get portfolio details and calculate allocations
+      const portfolioId = await contracts.investorPortfolioManager.getInvestorPortfolio(investor);
       const investorSigner = await contracts.provider.getSigner(investor);
-
-      // Get portfolio value before deposit
-      const beforeValue = await this.getPortfolioValue(investor);
-      console.log("Portfolio value before deposit:", beforeValue);
-
-      // Deposit directly (no USDC approval needed anymore)
-      console.log("Depositing...");
+      
+      // Step 3: Trigger on-chain deposit for full amount
       const portfolioManager = contracts.investorPortfolioManager.connect(investorSigner);
       const tx = await portfolioManager.deposit(amount);
       const receipt = await tx.wait();
@@ -113,26 +115,32 @@ export class PortfolioService {
       if (!receipt) {
         throw new Error("Transaction failed: no receipt received");
       }
-
-      // Handle cash balance update from event
+    
+      // Step 4: Handle cash balance update based on actual Cash tokens minted
       const cashEvent = receipt.logs.find(
         log => log.topics[0] === ethers.id("CashBalanceUpdated(address,uint256,bool)")
       );
+      
       if (cashEvent) {
         const abiCoder = new ethers.AbiCoder();
-        const [, cashAmount, isIncrease] = abiCoder.decode(
+        const [, cashTokenAmount, isIncrease] = abiCoder.decode(
           ["uint256", "bool"],
           cashEvent.data
         );
-        await this.cashService.updateCashBalance(
-          investor,
-          isIncrease ? Number(cashAmount) : -Number(cashAmount)
-        );
+        
+        // Step 5: Update balances.json to match Cash token amount
+        // This ensures our off-chain cash balance matches on-chain Cash tokens
+        const currentBalance = await this.cashService.getCashBalance(investor);
+        const targetBalance = Number(cashTokenAmount);
+        const adjustment = targetBalance - currentBalance;
+        
+        await this.cashService.updateCashBalance(investor, adjustment);
+        console.log("💰 Cash balance adjusted to match Cash tokens:", targetBalance);
       }
-
+    
       const afterValue = await this.getPortfolioValue(investor);
       console.log("Portfolio value after deposit:", afterValue);
-
+    
       return receipt;
     } catch (error: any) {
       console.error("❌ Deposit failed:", error);
@@ -229,10 +237,11 @@ export class PortfolioService {
       console.log("Starting withdrawal process...");
       const investorSigner = await contracts.provider.getSigner(investor);
 
-      // Get portfolio value before withdrawal
-      const beforeValue = await this.getPortfolioValue(investor);
-      console.log("Portfolio value before withdrawal:", beforeValue);
-
+      // Step 1: Check if withdrawal amount is available
+      const currentValue = await this.getPortfolioValue(investor);
+      console.log("Portfolio value before withdrawal:", currentValue);
+      
+      // Step 2: Trigger on-chain withdrawal
       const portfolioManager = contracts.investorPortfolioManager.connect(investorSigner);
       const tx = await portfolioManager.withdraw(amount);
       const receipt = await tx.wait();
@@ -241,21 +250,29 @@ export class PortfolioService {
         throw new Error("Transaction failed: no receipt received");
       }
 
-      // Handle cash balance update from event
+      // Step 3: Handle cash balance update based on actual Cash tokens burned
       const cashEvent = receipt.logs.find(
         log => log.topics[0] === ethers.id("CashBalanceUpdated(address,uint256,bool)")
       );
+      
       if (cashEvent) {
         const abiCoder = new ethers.AbiCoder();
-        const [, cashAmount, isIncrease] = abiCoder.decode(
+        const [, cashTokenAmount, isIncrease] = abiCoder.decode(
           ["uint256", "bool"],
           cashEvent.data
         );
-        await this.cashService.updateCashBalance(
-          investor,
-          isIncrease ? Number(cashAmount) : -Number(cashAmount)
-        );
+        
+        // Step 4: Update balances.json to match remaining Cash tokens
+        const currentBalance = await this.cashService.getCashBalance(investor);
+        const targetBalance = currentBalance - Number(cashTokenAmount);
+        
+        await this.cashService.updateCashBalance(investor, -Number(cashTokenAmount));
+        console.log("💰 Cash balance updated after withdrawal:", targetBalance);
       }
+
+      // Step 5: Add withdrawn amount back to cash balance
+      await this.cashService.updateCashBalance(investor, Number(amount));
+      console.log("💰 Withdrawn amount added to cash balance:", amount);
 
       const afterValue = await this.getPortfolioValue(investor);
       console.log("Portfolio value after withdrawal:", afterValue);

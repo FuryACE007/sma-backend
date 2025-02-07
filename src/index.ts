@@ -44,7 +44,7 @@ async function startServer() {
       "- Investor Portfolio Manager:",
       await contracts.investorPortfolioManager.getAddress()
     );
-    console.log("- USDC Token:", await contracts.fundTokens.usdc.getAddress());
+    console.log("- Cash Token:", await contracts.fundTokens.cash.getAddress());
     console.log(
       "- Real Estate Token:",
       await contracts.fundTokens.realEstate.getAddress()

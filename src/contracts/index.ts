@@ -25,7 +25,7 @@ export const contracts = {
     wallet
   ),
   fundTokens: {
-    usdc: FundToken__factory.connect(
+    cash: FundToken__factory.connect(
       deploymentInfo.addresses.cashToken,
       wallet
     ),
