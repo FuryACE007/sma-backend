@@ -192,4 +192,78 @@ export class PortfolioService {
       throw new Error(`Failed to get portfolio value: ${error.message}`);
     }
   }
+
+  async getModelPortfolio(portfolioId: number) {
+    try {
+      const modelPortfolio = await contracts.modelPortfolioManager.getModelPortfolio(portfolioId);
+      return modelPortfolio;
+    } catch (error: any) {
+      console.error("❌ Failed to get model portfolio:", error);
+      throw new Error(`Failed to get model portfolio: ${error.message}`);
+    }
+  }
+
+  async updateModelPortfolio(portfolioId: number, fundAddresses: string[], weights: number[]) {
+    try {
+      const portfolioManagerSigner = new ethers.Wallet(
+        PORTFOLIO_MANAGER_KEY,
+        contracts.provider
+      );
+
+      const modelManager = contracts.modelPortfolioManager.connect(portfolioManagerSigner);
+      const tx = await modelManager.updateModelPortfolio(portfolioId, fundAddresses, weights);
+      const receipt = await tx.wait();
+      
+      if (!receipt) throw new Error("Transaction failed");
+      
+      console.log("✅ Model portfolio updated");
+      return receipt;
+    } catch (error: any) {
+      console.error("❌ Failed to update model portfolio:", error);
+      throw new Error(`Failed to update model portfolio: ${error.message}`);
+    }
+  }
+
+  async withdraw(investor: string, amount: string) {
+    try {
+      console.log("Starting withdrawal process...");
+      const investorSigner = await contracts.provider.getSigner(investor);
+
+      // Get portfolio value before withdrawal
+      const beforeValue = await this.getPortfolioValue(investor);
+      console.log("Portfolio value before withdrawal:", beforeValue);
+
+      const portfolioManager = contracts.investorPortfolioManager.connect(investorSigner);
+      const tx = await portfolioManager.withdraw(amount);
+      const receipt = await tx.wait();
+      
+      if (!receipt) {
+        throw new Error("Transaction failed: no receipt received");
+      }
+
+      // Handle cash balance update from event
+      const cashEvent = receipt.logs.find(
+        log => log.topics[0] === ethers.id("CashBalanceUpdated(address,uint256,bool)")
+      );
+      if (cashEvent) {
+        const abiCoder = new ethers.AbiCoder();
+        const [, cashAmount, isIncrease] = abiCoder.decode(
+          ["uint256", "bool"],
+          cashEvent.data
+        );
+        await this.cashService.updateCashBalance(
+          investor,
+          isIncrease ? Number(cashAmount) : -Number(cashAmount)
+        );
+      }
+
+      const afterValue = await this.getPortfolioValue(investor);
+      console.log("Portfolio value after withdrawal:", afterValue);
+
+      return receipt;
+    } catch (error: any) {
+      console.error("❌ Withdrawal failed:", error);
+      throw new Error(`Failed to withdraw: ${error.message}`);
+    }
+  }
 }

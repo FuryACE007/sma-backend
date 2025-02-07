@@ -145,8 +145,8 @@ app.put("/api/portfolio/model/:portfolioId", async (req, res) => {
  */
 app.post("/api/portfolio/assign", async (req, res) => {
   try {
-    const { investor, portfolioId, stablecoin } = req.body;
-    await portfolioService.assignPortfolio(investor, portfolioId, stablecoin);
+    const { investor, portfolioId } = req.body;
+    await portfolioService.assignPortfolio(investor, portfolioId);
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
