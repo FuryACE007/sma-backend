@@ -35,8 +35,7 @@ const options = {
           type: 'object',
           properties: {
             investor: { type: 'string', description: 'Investor address' },
-            portfolioId: { type: 'number', description: 'Model portfolio ID' },
-            stablecoin: { type: 'string', description: 'Stablecoin address' },
+            portfolioId: { type: 'number', description: 'Model portfolio ID' }
           },
         },
         Transaction: {
@@ -52,4 +51,4 @@ const options = {
   apis: ['./src/app.ts'], // Path to the API routes
 };
 
-export const specs = swaggerJsdoc(options); 
+export const specs = swaggerJsdoc(options);
