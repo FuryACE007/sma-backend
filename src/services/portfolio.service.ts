@@ -95,19 +95,33 @@ export class PortfolioService {
     }
   }
 
-  async deposit(investor: string, amount: string) {
+  async deposit(investor: string, amountInUSD: string) {
     try {
       console.log("Starting deposit process...");
       
-      // Step 1: Store initial cash deposit in balances.json
-      await this.cashService.updateCashBalance(investor, Number(amount));
-      console.log("💰 Initial cash deposit stored:", amount);
-    
-      // Step 2: Get portfolio details and calculate allocations
+      // Convert USD amount to token amount (6 decimals)
+      const amount = ethers.parseUnits(amountInUSD, 6).toString();
+      console.log("Converting $" + amountInUSD + " to " + amount + " tokens");
+      
+      // Get portfolio details and calculate allocations
       const portfolioId = await contracts.investorPortfolioManager.getInvestorPortfolio(investor);
+      const modelPortfolio = await contracts.modelPortfolioManager.getModelPortfolio(portfolioId);
       const investorSigner = await contracts.provider.getSigner(investor);
       
-      // Step 3: Trigger on-chain deposit for full amount
+      // Calculate expected cash allocation based on model portfolio
+      let cashWeight = 0;
+      for (const allocation of modelPortfolio) {
+        if (allocation.tokenAddress === contracts.fundTokens.cash.target) {
+          cashWeight = Number(allocation.targetWeight);
+          break;
+        }
+      }
+      
+      // Calculate expected cash amount
+      const cashAmount = BigInt(amount) * BigInt(cashWeight) / BigInt(10000);
+      console.log(`Expected cash allocation: ${cashWeight/100}% = $${ethers.formatUnits(cashAmount, 6)}`);
+      
+      // Trigger on-chain deposit for full amount
       const portfolioManager = contracts.investorPortfolioManager.connect(investorSigner);
       const tx = await portfolioManager.deposit(amount);
       const receipt = await tx.wait();
@@ -115,32 +129,14 @@ export class PortfolioService {
       if (!receipt) {
         throw new Error("Transaction failed: no receipt received");
       }
-    
-      // Step 4: Handle cash balance update based on actual Cash tokens minted
-      const cashEvent = receipt.logs.find(
-        log => log.topics[0] === ethers.id("CashBalanceUpdated(address,uint256,bool)")
-      );
       
-      if (cashEvent) {
-        const abiCoder = new ethers.AbiCoder();
-        const [, cashTokenAmount, isIncrease] = abiCoder.decode(
-          ["uint256", "bool"],
-          cashEvent.data
-        );
-        
-        // Step 5: Update balances.json to match Cash token amount
-        // This ensures our off-chain cash balance matches on-chain Cash tokens
-        const currentBalance = await this.cashService.getCashBalance(investor);
-        const targetBalance = Number(cashTokenAmount);
-        const adjustment = targetBalance - currentBalance;
-        
-        await this.cashService.updateCashBalance(investor, adjustment);
-        console.log("💰 Cash balance adjusted to match Cash tokens:", targetBalance);
-      }
-    
+      // Update cash balance directly based on expected allocation
+      await this.cashService.updateCashBalance(investor, Number(cashAmount));
+      console.log(`💰 Cash balance set to: $${ethers.formatUnits(cashAmount, 6)}`);
+      
       const afterValue = await this.getPortfolioValue(investor);
       console.log("Portfolio value after deposit:", afterValue);
-    
+      
       return receipt;
     } catch (error: any) {
       console.error("❌ Deposit failed:", error);
@@ -151,26 +147,27 @@ export class PortfolioService {
   // Update getPortfolioValue to include cash balance
   async getPortfolioValue(investor: string): Promise<PortfolioValue> {
     try {
-      const [onChainValue, cashBalance] = await Promise.all([
-        contracts.investorPortfolioManager.getPortfolioValue(investor),
-        this.cashService.getCashBalance(investor)
-      ]);
-
-      // Get total value from contract
-      const totalValue =
-        await contracts.investorPortfolioManager.getPortfolioValue(investor);
-
-      // Get investor's portfolio ID
-      const portfolioId =
-        await contracts.investorPortfolioManager.getInvestorPortfolio(investor);
-
-      // Get model portfolio to know which tokens to check
-      const modelPortfolio =
-        await contracts.modelPortfolioManager.getModelPortfolio(portfolioId);
-
+      // Get cash balance first
+      const cashBalance = await this.cashService.getCashBalance(investor);
+  
+      // Get portfolio details
+      const portfolioId = await contracts.investorPortfolioManager.getInvestorPortfolio(investor);
+      const modelPortfolio = await contracts.modelPortfolioManager.getModelPortfolio(portfolioId);
+  
       // Get individual fund values
       const fundValues = await Promise.all(
         modelPortfolio.map(async (allocation) => {
+          // Handle Cash token explicitly
+          if (allocation.tokenAddress === contracts.fundTokens.cash.target) {
+            return {
+              tokenAddress: allocation.tokenAddress,
+              symbol: "CASH",
+              balance: cashBalance.toString(),
+              value: cashBalance.toString()
+            };
+          }
+  
+          // For other tokens, get balance from contract
           const token = new ethers.Contract(
             allocation.tokenAddress,
             [
@@ -179,22 +176,35 @@ export class PortfolioService {
             ],
             contracts.provider
           );
-
+  
           const balance = await token.balanceOf(investor);
-
+          const balanceBigInt = BigInt(balance.toString());
+  
           return {
             tokenAddress: allocation.tokenAddress,
             symbol: await token.symbol(),
-            balance: ethers.formatUnits(balance, 6),
-            value: ethers.formatUnits(balance, 6), // Assuming 1:1 price with USD
+            balance: balanceBigInt.toString(),
+            value: balanceBigInt.toString()
           };
         })
       );
-
+  
+      // Calculate total value including cash
+      const totalValue = fundValues.reduce(
+        (sum, fund) => sum + BigInt(fund.value),
+        BigInt(0)
+      );
+  
+      // Format all values with 6 decimals
       return {
-        totalValue: ethers.formatUnits(onChainValue + BigInt(cashBalance), 6),
+        totalValue: ethers.formatUnits(totalValue, 6),
         cashBalance: ethers.formatUnits(cashBalance, 6),
-        fundValues,
+        fundValues: fundValues.map(fund => ({
+          tokenAddress: fund.tokenAddress,
+          symbol: fund.symbol,
+          balance: ethers.formatUnits(BigInt(fund.balance), 6),
+          value: ethers.formatUnits(BigInt(fund.value), 6)
+        }))
       };
     } catch (error: any) {
       throw new Error(`Failed to get portfolio value: ${error.message}`);
@@ -232,9 +242,14 @@ export class PortfolioService {
     }
   }
 
-  async withdraw(investor: string, amount: string) {
+  async withdraw(investor: string, amountInUSD: string) {
     try {
       console.log("Starting withdrawal process...");
+      
+      // Convert USD amount to token amount (6 decimals)
+      const amount = ethers.parseUnits(amountInUSD, 6).toString();
+      console.log("Converting $" + amountInUSD + " to " + amount + " tokens");
+      
       const investorSigner = await contracts.provider.getSigner(investor);
 
       // Step 1: Check if withdrawal amount is available

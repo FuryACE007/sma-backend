@@ -18,11 +18,17 @@ export class CashService {
   async updateCashBalance(investor: string, amount: number) {
     const balances = JSON.parse(fs.readFileSync(this.balancesPath, 'utf8'));
     
-    if (!balances.investors[investor]) {
+    // If amount is 0, reset the balance
+    if (amount === 0) {
       balances.investors[investor] = 0;
+    } else {
+      // Otherwise add to existing balance (or initialize if not exists)
+      if (!balances.investors[investor]) {
+        balances.investors[investor] = 0;
+      }
+      
+      balances.investors[investor] += amount;
     }
-    
-    balances.investors[investor] += amount;
     
     // Ensure balance doesn't go below 0
     if (balances.investors[investor] < 0) {
