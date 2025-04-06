@@ -37,7 +37,7 @@ export class PriceOracleService {
   
   private startPriceSimulation() {
     // Update prices more frequently (every 1 minute) for testing
-    setInterval(() => this.simulatePriceChanges(), 1 * 60 * 1000);
+    setInterval(() => this.simulatePriceChanges(), 5 * 60 * 1000);
   }
   
   private simulatePriceChanges() {
@@ -76,8 +76,15 @@ export class PriceOracleService {
   // Add this method to your PriceOracleService class
   public forceSignificantPriceChange() {
     this.prices.forEach((assetPrice, tokenAddress) => {
-      // Skip CASH token
-      if (tokenAddress === this.CASH_TOKEN_ADDRESS) return;
+      // Skip CASH token - it must always stay at $1
+      if (tokenAddress === this.CASH_TOKEN_ADDRESS) {
+        // Ensure CASH is always exactly $1
+        if (assetPrice.price !== 1.0) {
+          this.prices.set(tokenAddress, { price: 1.0, lastUpdated: new Date() });
+          console.log(`🔄 Reset CASH token price to exactly $1.00`);
+        }
+        return;
+      }
       
       // Force a large price change (40-60% up or down)
       const direction = Math.random() > 0.5 ? 1 : -1;

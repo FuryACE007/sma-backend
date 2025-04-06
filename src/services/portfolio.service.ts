@@ -4,7 +4,9 @@ import { DatabaseService } from "./database.service";
 import { priceOracle } from "./price-oracle.service";
 
 // Account #1 (Portfolio Manager) private key
-const PORTFOLIO_MANAGER_KEY = process.env.PORTFOLIO_MANAGER_KEY || "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
+const PORTFOLIO_MANAGER_KEY =
+  process.env.PORTFOLIO_MANAGER_KEY ||
+  "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
 
 // Update the interface at the top of the file
 export interface PortfolioValue {
@@ -155,14 +157,14 @@ export class PortfolioService {
 
           const balance = await token.balanceOf(investor);
           const balanceBigInt = BigInt(balance.toString());
-          
+
           // Get current price from oracle
           const price = priceOracle.getPrice(allocation.tokenAddress);
-          
+
           // Calculate value based on price (convert to BigInt with 6 decimals)
           const balanceInUSD = Number(ethers.formatUnits(balanceBigInt, 6));
           const valueInUSD = balanceInUSD * price;
-          
+
           // Format to 6 decimal places to avoid precision errors
           const valueFormatted = valueInUSD.toFixed(6);
           const valueWithDecimals = ethers.parseUnits(valueFormatted, 6);
@@ -245,8 +247,9 @@ export class PortfolioService {
 
   async getModelPortfolio(portfolioId: number) {
     try {
-      const modelPortfolio = await contracts.modelPortfolioManager.getModelPortfolio(portfolioId);
-      
+      const modelPortfolio =
+        await contracts.modelPortfolioManager.getModelPortfolio(portfolioId);
+
       // Format the response to be more readable
       const formattedPortfolio = await Promise.all(
         modelPortfolio.map(async (allocation) => {
@@ -255,22 +258,22 @@ export class PortfolioService {
             ["function symbol() view returns (string)"],
             contracts.provider
           );
-          
+
           let symbol;
           try {
             symbol = await token.symbol();
           } catch (error) {
             symbol = "Unknown";
           }
-          
+
           return {
             tokenAddress: allocation.tokenAddress,
             symbol,
-            weight: Number(allocation.targetWeight) / 100 // Convert basis points to percentage
+            weight: Number(allocation.targetWeight) / 100, // Convert basis points to percentage
           };
         })
       );
-      
+
       return formattedPortfolio;
     } catch (error: any) {
       console.error("❌ Failed to get model portfolio:", error);
@@ -278,14 +281,18 @@ export class PortfolioService {
     }
   }
 
-  async updateModelPortfolio(portfolioId: number, fundAddresses: string[], weights: number[]) {
+  async updateModelPortfolio(
+    portfolioId: number,
+    fundAddresses: string[],
+    weights: number[]
+  ) {
     try {
       // Connect as portfolio manager (Account #1) since they own the contract
       const portfolioManagerSigner = new ethers.Wallet(
         PORTFOLIO_MANAGER_KEY,
         contracts.provider
       );
-  
+
       const modelManager = contracts.modelPortfolioManager.connect(
         portfolioManagerSigner
       );
@@ -295,10 +302,10 @@ export class PortfolioService {
         weights
       );
       const receipt = await tx.wait();
-  
+
       if (!receipt) throw new Error("Transaction failed");
       console.log("✅ Model portfolio updated");
-      
+
       // Get all investors using this portfolio and update their balances in the database
       const investors = await this.getInvestorsForPortfolio(portfolioId);
       for (const investor of investors) {
@@ -310,7 +317,7 @@ export class PortfolioService {
           "update"
         );
       }
-      
+
       return receipt;
     } catch (error: any) {
       console.error("❌ Failed to update model portfolio:", error);
@@ -321,26 +328,58 @@ export class PortfolioService {
   async rebalancePortfolio(investor: string) {
     try {
       console.log("Manually rebalancing portfolio for investor:", investor);
-      
+
+      // Get value before rebalancing
+      const beforeValue = await this.getPortfolioValue(investor);
+      const beforeValueUSD = parseFloat(beforeValue.totalValue);
+      console.log(
+        `Portfolio value before rebalance: $${beforeValueUSD.toFixed(4)}`
+      );
+
       // Connect as portfolio manager (Account #1) since they own the contract
       const portfolioManagerSigner = new ethers.Wallet(
         PORTFOLIO_MANAGER_KEY,
         contracts.provider
       );
-  
+
       const investorManager = contracts.investorPortfolioManager.connect(
         portfolioManagerSigner
       );
-      
+
       const tx = await investorManager.rebalancePortfolio(investor);
       const receipt = await tx.wait();
-      
+
       if (!receipt) throw new Error("Transaction failed");
       console.log("✅ Portfolio rebalanced successfully");
-      
+
       const afterValue = await this.getPortfolioValue(investor);
-      console.log("Portfolio value after rebalance:", afterValue);
-      
+      const afterValueUSD = parseFloat(afterValue.totalValue);
+      console.log(
+        `Portfolio value after rebalance: $${afterValueUSD.toFixed(4)}`
+      );
+
+      // Check if total value has changed significantly (allow 0.1% difference for rounding)
+      const valueDifference =
+        Math.abs(afterValueUSD - beforeValueUSD) / beforeValueUSD;
+      if (valueDifference > 0.001) {
+        console.warn(
+          `⚠️ WARNING: Total portfolio value changed by ${(
+            valueDifference * 100
+          ).toFixed(2)}% during rebalancing!`
+        );
+        console.warn(
+          `   Before: $${beforeValueUSD.toFixed(
+            4
+          )}, After: $${afterValueUSD.toFixed(4)}`
+        );
+      } else {
+        console.log(
+          `✅ Total portfolio value preserved during rebalancing (difference: ${(
+            valueDifference * 100
+          ).toFixed(4)}%)`
+        );
+      }
+
       // Save the updated portfolio balance to the database
       const portfolioId =
         await contracts.investorPortfolioManager.getInvestorPortfolio(investor);
@@ -350,7 +389,7 @@ export class PortfolioService {
         afterValue,
         "rebalance"
       );
-      
+
       return receipt;
     } catch (error: any) {
       console.error("❌ Failed to rebalance portfolio:", error);
@@ -360,9 +399,14 @@ export class PortfolioService {
 
   // Helper method to get all investors for a specific portfolio
   // Replace the placeholder method with this implementation
-  private async getInvestorsForPortfolio(portfolioId: number): Promise<string[]> {
+  private async getInvestorsForPortfolio(
+    portfolioId: number
+  ): Promise<string[]> {
     try {
-      const investors = await contracts.modelPortfolioManager.getPortfolioInvestors(portfolioId);
+      const investors =
+        await contracts.modelPortfolioManager.getPortfolioInvestors(
+          portfolioId
+        );
       return investors;
     } catch (error) {
       console.error("Failed to get investors for portfolio:", error);
@@ -381,76 +425,113 @@ export class PortfolioService {
 
   // Add this to your PortfolioService class
   private rebalancingThreshold = 0.05; // 5% deviation threshold
-  
+
   async checkAndRebalancePortfolio(investor: string): Promise<boolean> {
     try {
       console.log(`Checking portfolio balance for investor: ${investor}`);
-      
+
       // Get portfolio details
-      const portfolioId = await contracts.investorPortfolioManager.getInvestorPortfolio(investor);
+      const portfolioId =
+        await contracts.investorPortfolioManager.getInvestorPortfolio(investor);
       console.log(`Portfolio ID: ${portfolioId}`);
-      
+
       // If portfolio ID is 0, it means no portfolio is assigned
-      if (portfolioId.toString() === '0') {
-        console.log(`No portfolio assigned to investor ${investor}, skipping rebalance check`);
+      if (portfolioId.toString() === "0") {
+        console.log(
+          `No portfolio assigned to investor ${investor}, skipping rebalance check`
+        );
         return false;
       }
-      
-      const modelPortfolio = await contracts.modelPortfolioManager.getModelPortfolio(portfolioId);
+
+      const modelPortfolio =
+        await contracts.modelPortfolioManager.getModelPortfolio(portfolioId);
       const currentValue = await this.getPortfolioValue(investor);
-      
+
       // Calculate total portfolio value
       const totalValueUSD = parseFloat(currentValue.totalValue);
       console.log(`Total portfolio value: $${totalValueUSD.toFixed(4)}`);
-      
+
       // If portfolio value is 0, skip rebalancing
       if (totalValueUSD === 0) {
-        console.log(`Portfolio value is 0 for investor ${investor}, skipping rebalance check`);
+        console.log(
+          `Portfolio value is 0 for investor ${investor}, skipping rebalance check`
+        );
         return false;
       }
-      
+
       // Check if any allocation deviates from target by more than threshold
       let needsRebalancing = false;
-      
-      console.log(`Current allocations vs targets (threshold: ${this.rebalancingThreshold * 100}%):`);
-      
+
+      console.log(
+        `Current allocations vs targets (threshold: ${
+          this.rebalancingThreshold * 100
+        }%):`
+      );
+
       for (const allocation of modelPortfolio) {
         // Find current allocation for this token
         const currentFund = currentValue.fundValues.find(
-          fund => fund.tokenAddress === allocation.tokenAddress
+          (fund) => fund.tokenAddress === allocation.tokenAddress
         );
-        
+
         if (currentFund) {
           // Calculate target value based on weight
           const targetWeight = Number(allocation.targetWeight) / 10000; // Convert basis points to percentage
           const targetValue = totalValueUSD * targetWeight;
-          
+
           // Calculate current value
           const currentValueUSD = parseFloat(currentFund.value);
-          
+
           // Calculate deviation
-          const deviation = Math.abs(currentValueUSD - targetValue) / targetValue;
-          
-          console.log(`- ${currentFund.symbol}: Current $${currentValueUSD.toFixed(4)} vs Target $${targetValue.toFixed(4)} (${(deviation * 100).toFixed(2)}% deviation)`);
-          
+          const deviation =
+            Math.abs(currentValueUSD - targetValue) / targetValue;
+
+          // Skip deviation check for CASH token if it's within a small margin of error (0.1%)
+          // This prevents unnecessary rebalancing due to rounding errors
+          const isCashToken =
+            currentFund.tokenAddress ===
+            "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+          const effectiveDeviation =
+            isCashToken && deviation < 0.001 ? 0 : deviation;
+
+          console.log(
+            `- ${currentFund.symbol}: Current $${currentValueUSD.toFixed(
+              4
+            )} vs Target $${targetValue.toFixed(4)} (${(
+              deviation * 100
+            ).toFixed(2)}% deviation)`
+          );
+
           // If deviation exceeds threshold, rebalancing is needed
-          if (deviation > this.rebalancingThreshold) {
-            console.log(`🔄 REBALANCING TRIGGERED: ${currentFund.symbol} deviation ${(deviation * 100).toFixed(2)}% exceeds threshold of ${(this.rebalancingThreshold * 100).toFixed(2)}%`);
+          if (effectiveDeviation > this.rebalancingThreshold) {
+            console.log(
+              `🔄 REBALANCING TRIGGERED: ${currentFund.symbol} deviation ${(
+                deviation * 100
+              ).toFixed(2)}% exceeds threshold of ${(
+                this.rebalancingThreshold * 100
+              ).toFixed(2)}%`
+            );
             needsRebalancing = true;
             break;
           }
         } else {
-          console.log(`- Token ${allocation.tokenAddress} not found in current portfolio`);
+          console.log(
+            `- Token ${allocation.tokenAddress} not found in current portfolio`
+          );
         }
       }
-      
+
       // If rebalancing is needed, trigger it
       if (needsRebalancing) {
-        console.log(`⚠️ Portfolio for ${investor} needs rebalancing - executing now...`);
+        console.log(
+          `⚠️ Portfolio for ${investor} needs rebalancing - executing now...`
+        );
         await this.rebalancePortfolio(investor);
         return true;
       } else {
-        console.log(`✅ Portfolio for ${investor} is balanced - no rebalancing needed`);
+        console.log(
+          `✅ Portfolio for ${investor} is balanced - no rebalancing needed`
+        );
         return false;
       }
     } catch (error: any) {
@@ -458,38 +539,42 @@ export class PortfolioService {
       return false;
     }
   }
-  
+
   // Start a background job to check portfolios periodically
   startPortfolioMonitoring() {
     // Check every 10 minutes
     setInterval(async () => {
       try {
         console.log("🔄 Running scheduled portfolio check...");
-        
+
         // Update prices first
         console.log("Updating asset prices...");
         priceOracle.updatePricesNow();
-        
+
         // Get all active portfolios
         const activePortfolios = await this.getAllActivePortfolios();
-        console.log(`Found ${activePortfolios.length} active portfolios to check`);
-        
+        console.log(
+          `Found ${activePortfolios.length} active portfolios to check`
+        );
+
         // Check each portfolio
         let rebalancedCount = 0;
         for (const investor of activePortfolios) {
           const wasRebalanced = await this.checkAndRebalancePortfolio(investor);
           if (wasRebalanced) rebalancedCount++;
         }
-        
-        console.log(`✅ Scheduled portfolio check completed. Rebalanced ${rebalancedCount} portfolios.`);
+
+        console.log(
+          `✅ Scheduled portfolio check completed. Rebalanced ${rebalancedCount} portfolios.`
+        );
       } catch (error) {
         console.error("❌ Error in scheduled portfolio check:", error);
       }
-    }, 1 * 60 * 1000); // 10 minutes
-    
+    }, 5 * 60 * 1000); // 5 minutes
+
     console.log("Portfolio monitoring started - checking every minute");
   }
-  
+
   // Helper to get all active portfolios
   private async getAllActivePortfolios(): Promise<string[]> {
     try {
