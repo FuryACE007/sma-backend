@@ -1,10 +1,11 @@
 import { contracts } from "../contracts";
 import { ethers } from "ethers";
+import { DatabaseService } from "./database.service";
 
 // Account #1 (Portfolio Manager) private key
-const PORTFOLIO_MANAGER_KEY = process.env.PORTFOLIO_MANAGER_KEY || "";
+const PORTFOLIO_MANAGER_KEY = process.env.PORTFOLIO_MANAGER_KEY || "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
 
-interface PortfolioValue {
+export interface PortfolioValue {
   totalValue: string;
   fundValues: {
     tokenAddress: string;
@@ -15,8 +16,10 @@ interface PortfolioValue {
 }
 
 export class PortfolioService {
+  private databaseService: DatabaseService;
+
   constructor() {
-    // No need for CashService anymore
+    this.databaseService = new DatabaseService();
   }
 
   async createModelPortfolio(fundAddresses: string[], weights: number[]) {
@@ -111,6 +114,14 @@ export class PortfolioService {
       const afterValue = await this.getPortfolioValue(investor);
       console.log("Portfolio value after deposit:", afterValue);
 
+      // Save the updated portfolio balance to the database
+      await this.databaseService.savePortfolioBalance(
+        investor,
+        Number(portfolioId),
+        afterValue,
+        "deposit"
+      );
+
       return receipt;
     } catch (error: any) {
       console.error("❌ Deposit failed:", error);
@@ -199,6 +210,16 @@ export class PortfolioService {
       const afterValue = await this.getPortfolioValue(investor);
       console.log("Portfolio value after withdrawal:", afterValue);
 
+      // Save the updated portfolio balance to the database
+      const portfolioId =
+        await contracts.investorPortfolioManager.getInvestorPortfolio(investor);
+      await this.databaseService.savePortfolioBalance(
+        investor,
+        Number(portfolioId),
+        afterValue,
+        "withdraw"
+      );
+
       return receipt;
     } catch (error: any) {
       console.error("❌ Withdrawal failed:", error);
@@ -261,6 +282,19 @@ export class PortfolioService {
   
       if (!receipt) throw new Error("Transaction failed");
       console.log("✅ Model portfolio updated");
+      
+      // Get all investors using this portfolio and update their balances in the database
+      const investors = await this.getInvestorsForPortfolio(portfolioId);
+      for (const investor of investors) {
+        const portfolioValue = await this.getPortfolioValue(investor);
+        await this.databaseService.savePortfolioBalance(
+          investor,
+          portfolioId,
+          portfolioValue,
+          "update"
+        );
+      }
+      
       return receipt;
     } catch (error: any) {
       console.error("❌ Failed to update model portfolio:", error);
@@ -291,10 +325,41 @@ export class PortfolioService {
       const afterValue = await this.getPortfolioValue(investor);
       console.log("Portfolio value after rebalance:", afterValue);
       
+      // Save the updated portfolio balance to the database
+      const portfolioId =
+        await contracts.investorPortfolioManager.getInvestorPortfolio(investor);
+      await this.databaseService.savePortfolioBalance(
+        investor,
+        Number(portfolioId),
+        afterValue,
+        "rebalance"
+      );
+      
       return receipt;
     } catch (error: any) {
       console.error("❌ Failed to rebalance portfolio:", error);
       throw new Error(`Failed to rebalance portfolio: ${error.message}`);
     }
+  }
+
+  // Helper method to get all investors for a specific portfolio
+  // Replace the placeholder method with this implementation
+  private async getInvestorsForPortfolio(portfolioId: number): Promise<string[]> {
+    try {
+      const investors = await contracts.modelPortfolioManager.getPortfolioInvestors(portfolioId);
+      return investors;
+    } catch (error) {
+      console.error("Failed to get investors for portfolio:", error);
+      return [];
+    }
+  }
+
+  // New methods to interact with the database
+  async getPortfolioBalanceHistory(investor: string) {
+    return this.databaseService.getPortfolioBalanceHistory(investor);
+  }
+
+  async getLatestPortfolioBalance(investor: string) {
+    return this.databaseService.getLatestPortfolioBalance(investor);
   }
 }

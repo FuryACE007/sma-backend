@@ -19,8 +19,11 @@
     "dotenv": "^16.4.7",
     "ethers": "^6.13.4",
     "express": "^4.21.2",
+    "reflect-metadata": "^0.2.2",
+    "sqlite3": "^5.1.7",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "typeorm": "^0.3.22"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
