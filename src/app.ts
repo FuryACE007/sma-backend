@@ -5,6 +5,7 @@ import swaggerJsdoc from "swagger-jsdoc";
 import { portfolioRoutes } from "./routes/portfolio.routes";
 import { initializeDatabase } from "./database/database";
 import "reflect-metadata";
+import { PortfolioService } from "./services/portfolio.service";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -82,6 +83,12 @@ export const startApp = async () => {
   try {
     await initializeDatabase();
     console.log("Database connection initialized");
+    
+    // Start portfolio monitoring
+    const portfolioService = new PortfolioService();
+    portfolioService.startPortfolioMonitoring();
+    console.log("Portfolio monitoring started");
+    
     return app;
   } catch (error) {
     console.error("Failed to initialize database:", error);

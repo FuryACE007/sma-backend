@@ -34,4 +34,13 @@ export class DatabaseService {
       order: { timestamp: "DESC" },
     });
   }
+
+  async getUniqueInvestors(): Promise<string[]> {
+    const result = await this.portfolioBalanceRepository
+      .createQueryBuilder("balance")
+      .select("DISTINCT balance.investor", "investor")
+      .getRawMany();
+    
+    return result.map(item => item.investor);
+  }
 }
