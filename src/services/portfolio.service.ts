@@ -547,9 +547,8 @@ export class PortfolioService {
       try {
         console.log("🔄 Running scheduled portfolio check...");
 
-        // Update prices first
-        console.log("Updating asset prices...");
-        priceOracle.updatePricesNow();
+        // Prices are now managed automatically by the PriceOracleService
+        console.log("Using current asset prices...");
 
         // Get all active portfolios
         const activePortfolios = await this.getAllActivePortfolios();

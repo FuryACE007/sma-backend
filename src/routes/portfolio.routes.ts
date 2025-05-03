@@ -70,7 +70,9 @@ portfolioRoutes.post("/model", async (req, res) => {
 portfolioRoutes.get("/model/:portfolioId", async (req, res) => {
   try {
     const { portfolioId } = req.params;
-    const modelPortfolio = await portfolioService.getModelPortfolio(Number(portfolioId));
+    const modelPortfolio = await portfolioService.getModelPortfolio(
+      Number(portfolioId)
+    );
     res.json({ modelPortfolio });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -400,7 +402,9 @@ portfolioRoutes.get("/history/:investor", async (req, res) => {
 portfolioRoutes.get("/latest-balance/:investor", async (req, res) => {
   try {
     const { investor } = req.params;
-    const latestBalance = await portfolioService.getLatestPortfolioBalance(investor);
+    const latestBalance = await portfolioService.getLatestPortfolioBalance(
+      investor
+    );
     res.json({ latestBalance });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -423,57 +427,6 @@ portfolioRoutes.get("/prices", (req, res) => {
   try {
     const prices = priceOracle.getAllPrices();
     res.json({ prices });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * @swagger
- * /api/portfolio/simulate-price-change:
- *   post:
- *     summary: Force a price simulation update
- *     tags: [Portfolio]
- *     responses:
- *       200:
- *         description: Prices updated successfully
- *       500:
- *         description: Server error
- */
-portfolioRoutes.post("/simulate-price-change", (req, res) => {
-  try {
-    priceOracle.updatePricesNow();
-    const prices = priceOracle.getAllPrices();
-    res.json({ 
-      message: "Prices updated successfully", 
-      prices 
-    });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Add this new endpoint to your portfolio routes
-
-/**
- * @swagger
- * /api/portfolio/force-price-change:
- *   post:
- *     summary: Force a significant price change for testing rebalancing
- *     tags: [Portfolio]
- *     responses:
- *       200:
- *         description: Prices updated with significant changes
- *       500:
- *         description: Server error
- */
-portfolioRoutes.post("/force-price-change", (req, res) => {
-  try {
-    const prices = priceOracle.forceSignificantPriceChange();
-    res.json({ 
-      message: "Prices updated with significant changes", 
-      prices 
-    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
