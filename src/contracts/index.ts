@@ -5,12 +5,23 @@ import {
   InvestorPortfolioManager__factory,
   FundToken__factory,
 } from "../../../sma-contracts/typechain-types";
+import dotenv from "dotenv";
 
-const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+dotenv.config();
 
-// Use Portfolio Manager's key (Account #1)
-const PORTFOLIO_MANAGER_KEY =
-  "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
+// Use Sepolia RPC URL from environment variables
+const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || "";
+if (!SEPOLIA_RPC_URL) {
+  throw new Error("SEPOLIA_RPC_URL not set in environment variables");
+}
+
+const provider = new ethers.JsonRpcProvider(SEPOLIA_RPC_URL);
+
+// Use Portfolio Manager's key from environment variables
+const PORTFOLIO_MANAGER_KEY = process.env.PRIVATE_KEY || "";
+if (!PORTFOLIO_MANAGER_KEY) {
+  throw new Error("PRIVATE_KEY not set in environment variables");
+}
 const wallet = new ethers.Wallet(PORTFOLIO_MANAGER_KEY, provider);
 
 export const contracts = {

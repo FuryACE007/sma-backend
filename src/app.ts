@@ -6,6 +6,7 @@ import { portfolioRoutes } from "./routes/portfolio.routes";
 import { initializeDatabase } from "./database/database";
 import "reflect-metadata";
 import { PortfolioService } from "./services/portfolio.service";
+import contractsRoutes from "./routes/contracts.routes";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -32,7 +33,7 @@ const swaggerOptions = {
           properties: {
             totalValue: {
               type: "string",
-              description: "Total portfolio value in USD"
+              description: "Total portfolio value in USD",
             },
             fundValues: {
               type: "array",
@@ -41,27 +42,27 @@ const swaggerOptions = {
                 properties: {
                   tokenAddress: {
                     type: "string",
-                    description: "Address of the token"
+                    description: "Address of the token",
                   },
                   symbol: {
                     type: "string",
-                    description: "Token symbol"
+                    description: "Token symbol",
                   },
                   balance: {
                     type: "string",
-                    description: "Token balance"
+                    description: "Token balance",
                   },
                   value: {
                     type: "string",
-                    description: "Token value in USD"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+                    description: "Token value in USD",
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   },
   apis: ["./src/routes/*.ts"], // Path to the API routes files
 };
@@ -83,12 +84,12 @@ export const startApp = async () => {
   try {
     await initializeDatabase();
     console.log("Database connection initialized");
-    
+
     // Start portfolio monitoring
     const portfolioService = new PortfolioService();
     portfolioService.startPortfolioMonitoring();
     console.log("Portfolio monitoring started");
-    
+
     return app;
   } catch (error) {
     console.error("Failed to initialize database:", error);
