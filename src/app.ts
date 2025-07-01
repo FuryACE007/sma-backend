@@ -78,6 +78,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Routes
 app.use("/api/portfolio", portfolioRoutes);
+app.use("/api/contracts", contractsRoutes);
 
 // Initialize database
 export const startApp = async () => {

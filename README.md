@@ -117,7 +117,7 @@ curl http://localhost:3001/api/portfolio/value/0xf39Fd6e51aad88F6F4ce6aB8827279c
 ## Important Notes
 
 1. The API uses a local SQLite database for simplicity.
-2. The backend connects to the Sepolia testnet using the RPC URL in your .env file.
+2. The backend connects to the BuildBear testnet using the RPC URL in your .env file.
 3. Investors will connect through MetaMask wallets on the Sepolia testnet.
 4. Make sure your contracts are deployed to Sepolia before testing.
 5. Update your .env file with the correct contract addresses after deployment.

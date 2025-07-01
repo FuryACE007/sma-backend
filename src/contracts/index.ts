@@ -9,13 +9,13 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Use Sepolia RPC URL from environment variables
-const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || "";
-if (!SEPOLIA_RPC_URL) {
-  throw new Error("SEPOLIA_RPC_URL not set in environment variables");
+// Use BuildBear RPC URL from environment variables
+const BUILD_BEAR_RPC_URL = process.env.BUILD_BEAR_RPC_URL || "";
+if (!BUILD_BEAR_RPC_URL) {
+  throw new Error("BUILD_BEAR_RPC_URL not set in environment variables");
 }
 
-const provider = new ethers.JsonRpcProvider(SEPOLIA_RPC_URL);
+const provider = new ethers.JsonRpcProvider(BUILD_BEAR_RPC_URL);
 
 // Use Portfolio Manager's key from environment variables
 const PORTFOLIO_MANAGER_KEY = process.env.PRIVATE_KEY || "";

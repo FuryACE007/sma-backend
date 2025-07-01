@@ -4,9 +4,7 @@ import { DatabaseService } from "./database.service";
 import { priceOracle } from "./price-oracle.service";
 
 // Account #1 (Portfolio Manager) private key
-const PORTFOLIO_MANAGER_KEY =
-  process.env.PORTFOLIO_MANAGER_KEY ||
-  "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
+const PORTFOLIO_MANAGER_KEY = process.env.PRIVATE_KEY || "";
 
 // Update the interface at the top of the file
 export interface PortfolioValue {
@@ -489,8 +487,7 @@ export class PortfolioService {
           // Skip deviation check for CASH token if it's within a small margin of error (0.1%)
           // This prevents unnecessary rebalancing due to rounding errors
           const isCashToken =
-            currentFund.tokenAddress ===
-            "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+            currentFund.tokenAddress === process.env.CASH_TOKEN_ADDRESS;
           const effectiveDeviation =
             isCashToken && deviation < 0.001 ? 0 : deviation;
 

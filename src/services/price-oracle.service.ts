@@ -5,8 +5,7 @@ interface AssetPrice {
 
 export class PriceOracleService {
   private prices: Map<string, AssetPrice> = new Map();
-  private readonly CASH_TOKEN_ADDRESS =
-    "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+  private readonly CASH_TOKEN_ADDRESS = process.env.CASH_TOKEN_ADDRESS ?? "";
 
   constructor() {
     // Initialize with default prices (1 USD)
@@ -21,13 +20,16 @@ export class PriceOracleService {
     });
 
     // Real Estate Token
-    this.prices.set("0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512", {
-      price: 1.0,
-      lastUpdated: new Date(),
-    });
+    const realEstateTokenAddress = process.env.REAL_ESTATE_TOKEN_ADDRESS ?? "";
+    if (realEstateTokenAddress) {
+      this.prices.set(realEstateTokenAddress, {
+        price: 1.0,
+        lastUpdated: new Date(),
+      });
+    }
 
     // Private Equity Token
-    this.prices.set("0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0", {
+    this.prices.set(process.env.PRIVATE_EQUITY_TOKEN_ADDRESS ?? "", {
       price: 1.0,
       lastUpdated: new Date(),
     });
