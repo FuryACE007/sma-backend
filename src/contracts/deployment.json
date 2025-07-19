@@ -2,17 +2,17 @@
   "network": "custom",
   "rpcUrl": "https://rpc.buildbear.io/tall-caliban-e3177480",
   "addresses": {
-    "cashToken": "0x9b2B19fE77E50F4188c8A93f193CA05812C5aAbE",
-    "realEstateToken": "0xF285Fc24053C36253c506D06336116FdF75dFE98",
-    "privateEquityToken": "0x4bB36e014371cFA70c9e21a4f10d0572CC7dED50",
-    "modelPortfolioManager": "0x83e5651311A3e8fAf816AECc587ec20a751D24B1",
-    "investorPortfolioManager": "0x0ce65472134Bec9f1b77F0cAD34Cad0007EF02bD"
+    "cashToken": "0x4C280e7e81E43DB1a4dA381FD3C1eAB908C9685e",
+    "realEstateToken": "0x7706166A1a55b3918174a9EE9DF4044f351eacd9",
+    "privateEquityToken": "0xB68e5B8B917Da0dD1a90d74792f44Dc946Ae2d15",
+    "modelPortfolioManager": "0x93B228304d642c2450458f76A39AA160D1693c5D",
+    "investorPortfolioManager": "0x97c86E851d1Bdf0a684549508EBcc309614d6fdE"
   },
   "accounts": {
     "deployer": "0x43FBE00e564e22473FE5F48E208F3F68da6CA5Ee",
     "manager": "0x385112a69a42cE1b4E6d6E355F673201E3E34739"
   },
-  "timestamp": "2025-07-19T13:54:49.319Z",
-  "blockNumber": 359357174,
-  "gasPrice": "1002145111"
+  "timestamp": "2025-07-19T17:07:00.971Z",
+  "blockNumber": 359357208,
+  "gasPrice": "1000026583"
 }
