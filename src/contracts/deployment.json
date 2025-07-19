@@ -1,14 +1,18 @@
 {
-  "network": "sepolia",
+  "network": "custom",
+  "rpcUrl": "https://rpc.buildbear.io/tall-caliban-e3177480",
   "addresses": {
-    "cashToken": "0x4f6756C93075F11ed21937C43F884Fa23745CF52",
-    "realEstateToken": "0x31153546cC8C146eEbFb59Ec9A15BfF3Edf270c3",
-    "privateEquityToken": "0x1664d6Ccdf201736b32994e7ef4ef1B0385eA8d7",
-    "modelPortfolioManager": "0xB3bA0635e32282e9E76a43A094CFbE827dfdcBC2",
-    "investorPortfolioManager": "0xb944ddF54e79105A3190c4bED6a4B0B260f0fb26"
+    "cashToken": "0x9b2B19fE77E50F4188c8A93f193CA05812C5aAbE",
+    "realEstateToken": "0xF285Fc24053C36253c506D06336116FdF75dFE98",
+    "privateEquityToken": "0x4bB36e014371cFA70c9e21a4f10d0572CC7dED50",
+    "modelPortfolioManager": "0x83e5651311A3e8fAf816AECc587ec20a751D24B1",
+    "investorPortfolioManager": "0x0ce65472134Bec9f1b77F0cAD34Cad0007EF02bD"
   },
   "accounts": {
-    "deployer": "0xB1e1B36bC62FD6f795e7E059c2E2B152b31657C9",
-    "manager": "0x376505Be19457Ad52497457AdDfF1f04aBE5158e"
-  }
+    "deployer": "0x43FBE00e564e22473FE5F48E208F3F68da6CA5Ee",
+    "manager": "0x385112a69a42cE1b4E6d6E355F673201E3E34739"
+  },
+  "timestamp": "2025-07-19T13:54:49.319Z",
+  "blockNumber": 359357174,
+  "gasPrice": "1002145111"
 }
